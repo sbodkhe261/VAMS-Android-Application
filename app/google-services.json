@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "27046218227",
+    "project_id": "vams-system",
+    "storage_bucket": "vams-system.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:27046218227:android:ea49e6b8f4749fa51f6a86",
+        "android_client_info": {
+          "package_name": "com.alertify.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPA3RZ9dfqJANtJrr2L90ed9AzDQEDLfU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:27046218227:android:cd94c6cfb1b172aa1f6a86",
+        "android_client_info": {
+          "package_name": "com.example.vamsapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPA3RZ9dfqJANtJrr2L90ed9AzDQEDLfU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
