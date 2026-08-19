@@ -2,6 +2,7 @@ package com.example.vamsapp.viewmodel
 
 import androidx.lifecycle.ViewModel
 import com.example.vamsapp.network.VamsPrefs
+import com.example.vamsapp.network.ApiClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -28,7 +29,18 @@ class ProfileViewModel : ViewModel() {
     }
 
     fun logout(onComplete: () -> Unit) {
-        VamsPrefs.clearSession()
-        onComplete()
+        com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            val token = if (task.isSuccessful) task.result else null
+            ApiClient.apiService.logout(com.example.vamsapp.model.LogoutRequest(token)).enqueue(object : retrofit2.Callback<Void> {
+                override fun onResponse(call: retrofit2.Call<Void>, response: retrofit2.Response<Void>) {
+                    VamsPrefs.clearSession()
+                    onComplete()
+                }
+                override fun onFailure(call: retrofit2.Call<Void>, t: Throwable) {
+                    VamsPrefs.clearSession()
+                    onComplete()
+                }
+            })
+        }
     }
 }

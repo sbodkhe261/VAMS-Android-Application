@@ -45,6 +45,7 @@ fun AlertDetailScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val isMuted by viewModel.isMuted.collectAsState()
+    val actionSuccess by viewModel.actionSuccess.collectAsState()
 
     var showAssignSheet by remember { mutableStateOf(false) }
     var showResolveSheet by remember { mutableStateOf(false) }
@@ -74,12 +75,19 @@ fun AlertDetailScreen(
         }
     }
 
+    LaunchedEffect(actionSuccess) {
+        if (actionSuccess) {
+            onNavigateBack()
+            viewModel.resetActionState()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = alert?.defect?.name ?: "Defect Details",
+                        text = alert?.defectName ?: alert?.defect?.name ?: "Defect Details",
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
                         maxLines = 1,
@@ -149,7 +157,7 @@ fun AlertDetailScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = "VIN: " + (currentAlert.vin ?: "N/A"),
+                                            text = "VIN: " + (currentAlert.vin ?: "Not specified"),
                                             fontFamily = FontFamily.Monospace,
                                             fontWeight = FontWeight.Bold,
                                             color = Color.White,
@@ -160,7 +168,7 @@ fun AlertDetailScreen(
                                         Icon(imageVector = Icons.Default.ContentCopy, contentDescription = "Copy", tint = TextSecondary, modifier = Modifier.size(16.dp))
                                     }
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    Text(text = "Source Station: Camera Inspection Station B", color = TextSecondary, fontSize = 12.sp)
+                                    Text(text = "Source Station: " + (if (currentAlert.isManual) "Manual Dispatch" else "Automated Webhook"), color = TextSecondary, fontSize = 12.sp)
                                     Text(text = "Ingested At: " + getRelativeTimeSpan(currentAlert.createdAt), color = TextSecondary, fontSize = 12.sp)
                                     Text(text = "Last Action At: " + getRelativeTimeSpan(currentAlert.updatedAt), color = TextSecondary, fontSize = 12.sp)
                                 }
@@ -175,7 +183,7 @@ fun AlertDetailScreen(
                                 shape = RoundedCornerShape(10.dp)
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(text = currentAlert.defect?.name ?: "Brake Fluid Leakage", fontWeight = FontWeight.Bold, color = Color.White)
+                                    Text(text = currentAlert.defectName ?: currentAlert.defect?.name ?: "Not specified", fontWeight = FontWeight.Bold, color = Color.White)
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         SeverityBadge(currentAlert.severity)
@@ -184,7 +192,7 @@ fun AlertDetailScreen(
                                             shape = RoundedCornerShape(4.dp)
                                         ) {
                                             Text(
-                                                text = currentAlert.defect?.category ?: "Brakes",
+                                                text = currentAlert.defect?.category ?: "Not specified",
                                                 color = Accent,
                                                 fontSize = 11.sp,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -195,13 +203,29 @@ fun AlertDetailScreen(
                                             shape = RoundedCornerShape(4.dp)
                                         ) {
                                             Text(
-                                                text = "Sound Profile: " + (currentAlert.defect?.soundProfile ?: "NORMAL"),
+                                                text = "Sound Profile: " + (currentAlert.defect?.soundProfile ?: "Not specified"),
                                                 color = PrimaryBlue,
                                                 fontSize = 11.sp,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                             )
                                         }
                                     }
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(text = "Trigger Definition", fontWeight = FontWeight.Bold, color = TextSecondary, fontSize = 11.sp)
+                                    Text(
+                                        text = currentAlert.definition ?: "Not specified",
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Text(text = "Escalation Timeout", fontWeight = FontWeight.Bold, color = TextSecondary, fontSize = 11.sp)
+                                    Text(
+                                        text = if (currentAlert.alertDefinition != null) "${currentAlert.alertDefinition.escalationTimeout} minutes" else "Not specified",
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
                                 }
                             }
                         }
@@ -237,8 +261,8 @@ fun AlertDetailScreen(
                                             )
                                             Text(
                                                 text = "Role: " + (currentAlert.assignedToRole ?: "None") +
-                                                        " | Dept: " + (currentAlert.assignedToDepartment ?: "Main Assembly") +
-                                                        " | Team: " + (currentAlert.assignedToTeam ?: "Line 1"),
+                                                        " | Dept: " + (currentAlert.assignedToDepartment ?: "Not specified") +
+                                                        " | Team: " + (currentAlert.assignedToTeam ?: "Not specified"),
                                                 color = TextSecondary,
                                                 fontSize = 11.sp
                                             )

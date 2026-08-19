@@ -11,6 +11,31 @@ object SoundService {
     private var mediaPlayer: MediaPlayer? = null
     private var isMuted = false
 
+    fun isRunningOnEmulator(): Boolean {
+        val fingerprint = android.os.Build.FINGERPRINT
+        val model = android.os.Build.MODEL
+        val manufacturer = android.os.Build.MANUFACTURER
+        val brand = android.os.Build.BRAND
+        val device = android.os.Build.DEVICE
+        val product = android.os.Build.PRODUCT
+        return (brand.startsWith("generic") && device.startsWith("generic"))
+                || fingerprint.startsWith("generic")
+                || fingerprint.startsWith("unknown")
+                || android.os.Build.HARDWARE.contains("goldfish")
+                || android.os.Build.HARDWARE.contains("ranchu")
+                || model.contains("google_sdk")
+                || model.contains("Emulator")
+                || model.contains("Android SDK built for x86")
+                || manufacturer.contains("Genymotion")
+                || product.contains("sdk_google")
+                || product.contains("google_sdk")
+                || product.contains("sdk")
+                || product.contains("sdk_x86")
+                || product.contains("vbox86p")
+                || product.contains("emulator")
+                || product.contains("simulator")
+    }
+
     fun init(context: Context) {
         // No-op, kept for signature compatibility
     }
@@ -245,25 +270,7 @@ object SoundService {
     }
 
     fun playCriticalSound(context: Context) {
-        if (isMuted) return
-        try {
-            stopAllSounds()
-            val file = generateEmergencySirenWav(context)
-            mediaPlayer = MediaPlayer().apply {
-                setDataSource(file.absolutePath)
-                prepare()
-                setOnCompletionListener {
-                    it.release()
-                    if (mediaPlayer == it) {
-                        mediaPlayer = null
-                    }
-                }
-                start()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to play emergency siren", e)
-            playRawSound(context, com.example.vamsapp.R.raw.beep)
-        }
+        playRawSound(context, com.example.vamsapp.R.raw.siren)
     }
 
     fun playAlertSoundOnce(context: Context, alertId: String, severity: String?, bypassSeenCheck: Boolean = false) {

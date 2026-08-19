@@ -27,7 +27,9 @@ data class User(
     val email: String,
     val name: String,
     val role: String,
-    val companyId: String
+    val companyId: String,
+    val companyCode: String? = null,
+    val companyName: String? = null
 )
 
 // --- Company & Settings ---
@@ -135,12 +137,28 @@ data class TimelineEvent(
     val performedByUser: TimelineUser? = null
 )
 
+data class AlertDefinition(
+    val id: String,
+    val companyId: String,
+    val alertId: String,
+    val name: String,
+    val definition: String? = null,
+    val type: String,
+    val severity: String,
+    val primaryAssigneeId: String,
+    val escalationChain: List<String>,
+    val escalationTimeout: Int,
+    val criticalOverride: Boolean,
+    val isActive: Boolean
+)
+
 // --- Alerts ---
 data class Alert(
     val id: String,
     val vin: String? = null,
     val companyId: String,
-    val defectId: String,
+    val defectId: String? = null,
+    val defectName: String? = null,
     val severity: String,
     val status: String,
     val assignedToUserId: String? = null,
@@ -150,8 +168,11 @@ data class Alert(
     val createdById: String? = null,
     val escalationStep: Int,
     val nextEscalationAt: String? = null,
+    val isManual: Boolean = true,
     val createdAt: String,
     val updatedAt: String,
+    val definition: String? = null,
+    val alertDefinition: AlertDefinition? = null,
     val defect: DefectMaster? = null,
     val resolution: Resolution? = null,
     val timeline: List<TimelineEvent>? = null
@@ -223,4 +244,8 @@ data class TranscriptionResponse(
 
 data class UpdateDeviceTokenRequest(
     val token: String
+)
+
+data class LogoutRequest(
+    val token: String?
 )

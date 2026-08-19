@@ -6,40 +6,67 @@ import com.example.vamsapp.model.User
 
 object VamsPrefs {
     private const val PREFS_NAME = "vams_preferences"
+    private const val FALLBACK_PREFS_NAME = "vams_preferences_standard"
     private const val KEY_AUTH_TOKEN = "auth_token"
     private const val KEY_SERVER_URL = "server_url"
     private const val KEY_COMPANY_ID = "company_id"
     private const val KEY_COMPANY_NAME = "company_name"
     private const val KEY_MUTED_ALERTS = "muted_alerts"
-    private const val DEFAULT_URL = "http://192.168.156.135:3000/api/v1/"
+    private const val DEFAULT_URL = "https://vams-backend.onrender.com/api/v1/"
 
     private lateinit var preferences: SharedPreferences
 
     fun init(context: Context) {
         try {
-            val masterKeyAlias = androidx.security.crypto.MasterKeys.getOrCreate(androidx.security.crypto.MasterKeys.AES256_GCM_SPEC)
-            preferences = androidx.security.crypto.EncryptedSharedPreferences.create(
-                PREFS_NAME,
-                masterKeyAlias,
-                context,
-                androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
+            preferences = createEncryptedPrefs(context)
         } catch (e: Throwable) {
-            // Fallback to standard SharedPreferences if security setup fails (e.g., Keystore issues)
-            preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            android.util.Log.e("VamsPrefs", "Error creating EncryptedSharedPreferences, resetting keystore...", e)
+            try {
+                // Delete the master key from Keystore so getOrCreate recreates it
+                val keyStore = java.security.KeyStore.getInstance("AndroidKeyStore").apply {
+                    load(null)
+                }
+                keyStore.deleteEntry("_androidx_security_master_key_")
+            } catch (keystoreEx: Throwable) {
+                android.util.Log.e("VamsPrefs", "Failed to delete master key from Keystore", keystoreEx)
+            }
+            try {
+                // Clear the SharedPreferences file physically to start clean
+                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().clear().commit()
+                preferences = createEncryptedPrefs(context)
+            } catch (retryEx: Throwable) {
+                android.util.Log.e("VamsPrefs", "Failed to recreate EncryptedSharedPreferences, falling back to standard SharedPreferences", retryEx)
+                preferences = context.getSharedPreferences(FALLBACK_PREFS_NAME, Context.MODE_PRIVATE)
+            }
         }
         
         // Upgrade stale local IPs to the current active host IP, or reset loopback references
         val savedUrl = preferences.getString(KEY_SERVER_URL, null)
-        if (savedUrl == null || savedUrl.contains("192.168.223.135")) {
+        if (savedUrl == null) {
             preferences.edit().putString(KEY_SERVER_URL, DEFAULT_URL).apply()
+        } else if (savedUrl.contains("192.168.230.135") || savedUrl.contains("192.168.8.135") || savedUrl.contains("192.168.126.135")) {
+            val upgradedUrl = savedUrl
+                .replace("192.168.230.135", "192.168.124.135")
+                .replace("192.168.8.135", "192.168.124.135")
+                .replace("192.168.126.135", "192.168.124.135")
+            preferences.edit().putString(KEY_SERVER_URL, upgradedUrl).apply()
         }
 
         // Also sync the static retrofit auth token upon startup
         ApiClient.authToken = getAuthToken()
         val currentUrl = getServerUrl()
         ApiClient.setBaseUrl(currentUrl)
+    }
+
+    private fun createEncryptedPrefs(context: Context): SharedPreferences {
+        val masterKeyAlias = androidx.security.crypto.MasterKeys.getOrCreate(androidx.security.crypto.MasterKeys.AES256_GCM_SPEC)
+        return androidx.security.crypto.EncryptedSharedPreferences.create(
+            PREFS_NAME,
+            masterKeyAlias,
+            context,
+            androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
     }
 
     fun getAuthToken(): String? {

@@ -426,9 +426,21 @@ fun MainNavigation(pendingAlertId: MutableState<String?>) {
                             currentUser = null
                             loginViewModel.reset()
                             dashboardViewModel.reset()
-                            VamsPrefs.clearSession()
-                            screenStack.clear()
-                            screenStack.add(Screen.CompanyLogin)
+                            com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                                val token = if (task.isSuccessful) task.result else null
+                                ApiClient.apiService.logout(com.example.vamsapp.model.LogoutRequest(token)).enqueue(object : retrofit2.Callback<Void> {
+                                    override fun onResponse(call: retrofit2.Call<Void>, response: retrofit2.Response<Void>) {
+                                        VamsPrefs.clearSession()
+                                        screenStack.clear()
+                                        screenStack.add(Screen.CompanyLogin)
+                                    }
+                                    override fun onFailure(call: retrofit2.Call<Void>, t: Throwable) {
+                                        VamsPrefs.clearSession()
+                                        screenStack.clear()
+                                        screenStack.add(Screen.CompanyLogin)
+                                    }
+                                })
+                            }
                         }
                     )
                 }
@@ -519,9 +531,21 @@ fun MainNavigation(pendingAlertId: MutableState<String?>) {
                         onLogout = {
                             currentUser = null
                             loginViewModel.reset()
-                            VamsPrefs.clearSession()
-                            screenStack.clear()
-                            screenStack.add(Screen.CompanyLogin)
+                            com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                                val token = if (task.isSuccessful) task.result else null
+                                ApiClient.apiService.logout(com.example.vamsapp.model.LogoutRequest(token)).enqueue(object : retrofit2.Callback<Void> {
+                                    override fun onResponse(call: retrofit2.Call<Void>, response: retrofit2.Response<Void>) {
+                                        VamsPrefs.clearSession()
+                                        screenStack.clear()
+                                        screenStack.add(Screen.CompanyLogin)
+                                    }
+                                    override fun onFailure(call: retrofit2.Call<Void>, t: Throwable) {
+                                        VamsPrefs.clearSession()
+                                        screenStack.clear()
+                                        screenStack.add(Screen.CompanyLogin)
+                                    }
+                                })
+                            }
                         }
                     )
                 }
@@ -572,7 +596,7 @@ fun MainNavigation(pendingAlertId: MutableState<String?>) {
                         onNavigateBack = { if (screenStack.size > 1) screenStack.removeAt(screenStack.size - 1) },
                         onNavigateToForgotPassword = { screenStack.add(Screen.ForgotPassword) },
                         onNavigateToRegister = {
-                            registrationViewModel.reset(VamsPrefs.getCompanyId())
+                            registrationViewModel.reset(VamsPrefs.getCompanyName() ?: VamsPrefs.getCompanyId())
                             screenStack.add(Screen.Registration)
                         },
                         onLoginSuccess = { user ->

@@ -18,6 +18,9 @@ interface VamsApiService {
     @POST("auth/device-token")
     fun updateDeviceToken(@Body request: UpdateDeviceTokenRequest): Call<Void>
 
+    @POST("auth/logout")
+    fun logout(@Body request: LogoutRequest): Call<Void>
+
     // --- Companies & Settings ---
     @POST("companies")
     fun createCompany(@Body request: CreateCompanyRequest): Call<Company>

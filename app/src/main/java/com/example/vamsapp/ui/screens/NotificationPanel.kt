@@ -211,7 +211,7 @@ fun NotificationItemCard(
                 }
 
                 Text(
-                    text = "$severityIcon New ${alert.severity} alert: ${alert.defect?.name ?: "Brake Fluid Leak"}",
+                    text = "$severityIcon New ${alert.severity} alert: ${alert.defectName ?: alert.defect?.name ?: "Not specified"}",
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
                     color = Color.White,
@@ -222,7 +222,7 @@ fun NotificationItemCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Assigned to: ${alert.assignedToRole ?: "None"} | VIN: ${alert.vin}",
+                text = "Assigned to: ${alert.assignedToRole ?: "None"} | VIN: ${alert.vin ?: "Not specified"}",
                 fontSize = 11.sp,
                 color = TextSecondary
             )

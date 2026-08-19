@@ -21,9 +21,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     companion object {
         private const val TAG = "MyFirebaseMsgService"
-        private const val SIREN_CHANNEL_ID = "vams_siren_alerts_v7"
-        private const val BEEP_CHANNEL_ID = "vams_beep_alerts_v7"
-        private const val DEFAULT_CHANNEL_ID = "vams_default_alerts_v7"
+        private const val SIREN_CHANNEL_ID = "vams_siren_alerts_v8"
+        private const val BEEP_CHANNEL_ID = "vams_beep_alerts_v8"
+        private const val DEFAULT_CHANNEL_ID = "vams_default_alerts_v8"
     }
 
     override fun onCreate() {
@@ -113,9 +113,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {
                 val packageName = packageName
+                val isEmulator = SoundService.isRunningOnEmulator()
                 
                 // 1. Siren Channel
-                val sirenUri = android.net.Uri.parse("android.resource://$packageName/${com.example.vamsapp.R.raw.beep}")
+                val sirenUri = android.net.Uri.parse("android.resource://$packageName/${com.example.vamsapp.R.raw.siren}")
                 val sirenAttributes = AudioAttributes.Builder()
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .setUsage(AudioAttributes.USAGE_ALARM)
@@ -176,10 +177,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         )
 
         val titleUpper = title.uppercase()
-        val isTaskAction = titleUpper.contains("RESOLVED") || titleUpper.contains("REOPEN") || titleUpper.contains("HANDOVER") || titleUpper.contains("ASSIGN")
+        val isTaskAction = titleUpper.contains("RESOLVED") || titleUpper.contains("REOPEN") || titleUpper.contains("HANDOVER") || titleUpper.contains("ASSIGN") || titleUpper.contains("TAKEOVER") || titleUpper.contains("TAKE OVER")
 
-        val isSiren = severity.uppercase() == "CRITICAL" || severity.uppercase() == "EMERGENCY" || soundProfile.uppercase() == "CRITICAL"
-        val isBeep = severity.uppercase() == "HIGH" || soundProfile.uppercase() == "ALERT" || isTaskAction
+        val isSiren = (severity.uppercase() == "CRITICAL" || severity.uppercase() == "EMERGENCY" || soundProfile.uppercase() == "CRITICAL") && !isTaskAction
+        val isBeep = severity.uppercase() == "HIGH" || severity.uppercase() == "MEDIUM" || soundProfile.uppercase() == "ALERT" || isTaskAction
 
         val channelId = when {
             isSiren -> SIREN_CHANNEL_ID
@@ -189,7 +190,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         val packageName = packageName
         val soundUri = when {
-            isSiren -> android.net.Uri.parse("android.resource://$packageName/${com.example.vamsapp.R.raw.beep}")
+            isSiren -> android.net.Uri.parse("android.resource://$packageName/${com.example.vamsapp.R.raw.siren}")
             isBeep -> android.net.Uri.parse("android.resource://$packageName/${com.example.vamsapp.R.raw.beep}")
             else -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         }

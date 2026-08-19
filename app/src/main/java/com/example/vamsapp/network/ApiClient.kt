@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
-    private const val BASE_URL = "http://192.168.156.135:3000/api/v1/"
+    private const val BASE_URL = "https://vams-backend.onrender.com/api/v1/"
     private var currentBaseUrl = BASE_URL
 
     var authToken: String? = null

@@ -466,7 +466,7 @@ fun DefectIncidentCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = alert.defect?.name ?: "Brake Fluid Leakage",
+                        text = alert.defectName ?: alert.defect?.name ?: "Not specified",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                         color = Color.White,
@@ -490,12 +490,22 @@ fun DefectIncidentCard(
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = alert.definition ?: "No definition provided",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "VIN: " + (alert.vin ?: "N/A"), fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = TextSecondary)
+                    Text(text = "VIN: " + (alert.vin ?: "Not specified"), fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = TextSecondary)
                     if (alert.status.equals("RESOLVED", ignoreCase = true)) {
                         Text(text = "Resolved by: ${alert.resolution?.resolvedByUser?.name ?: "Someone"}", fontSize = 11.sp, color = Success, fontWeight = FontWeight.Bold)
                     } else {

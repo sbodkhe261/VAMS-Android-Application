@@ -49,7 +49,7 @@ class LoginViewModel : ViewModel() {
     init {
         // Pre-fill from Preferences
         _serverUrl.value = VamsPrefs.getServerUrl()
-        _companyIdInput.value = VamsPrefs.getCompanyId() ?: ""
+        _companyIdInput.value = VamsPrefs.getCompanyName() ?: VamsPrefs.getCompanyId() ?: ""
     }
 
     fun setServerUrl(url: String) {
@@ -131,9 +131,16 @@ class LoginViewModel : ViewModel() {
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
                     
-                    // Verify company isolation rule: JWT companyId matches entered companyId
+                    // Verify company isolation rule: JWT companyId matches entered companyId (UUID) or company name/code
                     val enteredCompanyId = VamsPrefs.getCompanyId()
-                    if (body.user.companyId != enteredCompanyId) {
+                    val enteredCompanyName = VamsPrefs.getCompanyName()
+                    
+                    val belongsToCompany = (body.user.companyId == enteredCompanyId) ||
+                            (!enteredCompanyId.isNullOrBlank() && body.user.companyCode?.equals(enteredCompanyId, ignoreCase = true) == true) ||
+                            (!enteredCompanyName.isNullOrBlank() && body.user.companyCode?.equals(enteredCompanyName, ignoreCase = true) == true) ||
+                            (!enteredCompanyName.isNullOrBlank() && body.user.companyName?.equals(enteredCompanyName, ignoreCase = true) == true)
+
+                    if (!belongsToCompany) {
                         _error.value = "This account does not belong to this company"
                         VamsPrefs.clearSession()
                         return

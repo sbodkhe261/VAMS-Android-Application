@@ -6,6 +6,7 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -91,12 +93,168 @@ fun CompanyLoginScreen(
     var isServerFocused by remember { mutableStateOf(false) }
     var isCompanyFocused by remember { mutableStateOf(false) }
 
+    var showSettingsDialog by remember { mutableStateOf(false) }
+    var selectedUrlOption by remember { mutableStateOf("onrender") }
+    var customIpInput by remember { mutableStateOf("192.168.124.135") }
+
+    LaunchedEffect(serverUrl, showSettingsDialog) {
+        if (!showSettingsDialog) {
+            selectedUrlOption = when {
+                serverUrl.contains("onrender.com") -> "onrender"
+                serverUrl.contains("192.168.124.135") -> "local"
+                else -> "custom"
+            }
+            customIpInput = if (selectedUrlOption == "custom") {
+                serverUrl.substringAfter("http://").substringBefore(":3000").substringBefore("/api/v1/")
+            } else {
+                "192.168.124.135"
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(BackgroundDark),
         contentAlignment = Alignment.Center
     ) {
+        // Settings Gear Icon
+        IconButton(
+            onClick = { showSettingsDialog = true },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "Server Settings",
+                tint = Color.White
+            )
+        }
+
+        if (showSettingsDialog) {
+            AlertDialog(
+                onDismissRequest = { showSettingsDialog = false },
+                title = {
+                    Text(text = "Server Configuration", color = Color.White, fontWeight = FontWeight.Bold)
+                },
+                containerColor = CardDark,
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Select server connection option:",
+                            color = Color.LightGray,
+                            fontSize = 14.sp
+                        )
+                        
+                        // Onrender Cloud
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedUrlOption = "onrender" }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedUrlOption == "onrender",
+                                onClick = { selectedUrlOption = "onrender" },
+                                colors = RadioButtonDefaults.colors(selectedColor = Accent)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(text = "Onrender Cloud", color = Color.White, fontWeight = FontWeight.SemiBold)
+                                Text(text = "https://vams-backend.onrender.com", color = Color.Gray, fontSize = 11.sp)
+                            }
+                        }
+
+                        // Local PC Server
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedUrlOption = "local" }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedUrlOption == "local",
+                                onClick = { selectedUrlOption = "local" },
+                                colors = RadioButtonDefaults.colors(selectedColor = Accent)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(text = "Local PC Server", color = Color.White, fontWeight = FontWeight.SemiBold)
+                                Text(text = "http://192.168.124.135:3000", color = Color.Gray, fontSize = 11.sp)
+                            }
+                        }
+
+                        // Custom Local IP
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedUrlOption = "custom" }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedUrlOption == "custom",
+                                onClick = { selectedUrlOption = "custom" },
+                                colors = RadioButtonDefaults.colors(selectedColor = Accent)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(text = "Custom Local IP (Wi-Fi)", color = Color.White, fontWeight = FontWeight.SemiBold)
+                                Text(text = "Connect to PC running NestJS locally", color = Color.Gray, fontSize = 11.sp)
+                            }
+                        }
+
+                        if (selectedUrlOption == "custom") {
+                            OutlinedTextField(
+                                value = customIpInput,
+                                onValueChange = { customIpInput = it },
+                                label = { Text("PC IP Address") },
+                                singleLine = true,
+                                placeholder = { Text("e.g. 192.168.124.135") },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Accent,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                                )
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val finalUrl = when (selectedUrlOption) {
+                                "onrender" -> "https://vams-backend.onrender.com/api/v1/"
+                                "local" -> "http://192.168.124.135:3000/api/v1/"
+                                else -> {
+                                    var ip = customIpInput.trim()
+                                    if (ip.startsWith("http://")) ip = ip.substringAfter("http://")
+                                    if (ip.endsWith("/")) ip = ip.dropLast(1)
+                                    "http://$ip:3000/api/v1/"
+                                }
+                            }
+                            viewModel.setServerUrl(finalUrl)
+                            showSettingsDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                    ) {
+                        Text("Save", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSettingsDialog = false }) {
+                        Text("Cancel", color = Color.LightGray)
+                    }
+                }
+            )
+        }
+
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
