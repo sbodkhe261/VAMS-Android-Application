@@ -426,19 +426,14 @@ fun MainNavigation(pendingAlertId: MutableState<String?>) {
                             currentUser = null
                             loginViewModel.reset()
                             dashboardViewModel.reset()
+                            VamsPrefs.clearSession()
+                            screenStack.clear()
+                            screenStack.add(Screen.CompanyLogin)
                             com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                                 val token = if (task.isSuccessful) task.result else null
                                 ApiClient.apiService.logout(com.example.vamsapp.model.LogoutRequest(token)).enqueue(object : retrofit2.Callback<Void> {
-                                    override fun onResponse(call: retrofit2.Call<Void>, response: retrofit2.Response<Void>) {
-                                        VamsPrefs.clearSession()
-                                        screenStack.clear()
-                                        screenStack.add(Screen.CompanyLogin)
-                                    }
-                                    override fun onFailure(call: retrofit2.Call<Void>, t: Throwable) {
-                                        VamsPrefs.clearSession()
-                                        screenStack.clear()
-                                        screenStack.add(Screen.CompanyLogin)
-                                    }
+                                    override fun onResponse(call: retrofit2.Call<Void>, response: retrofit2.Response<Void>) {}
+                                    override fun onFailure(call: retrofit2.Call<Void>, t: Throwable) {}
                                 })
                             }
                         }
@@ -531,19 +526,14 @@ fun MainNavigation(pendingAlertId: MutableState<String?>) {
                         onLogout = {
                             currentUser = null
                             loginViewModel.reset()
+                            VamsPrefs.clearSession()
+                            screenStack.clear()
+                            screenStack.add(Screen.CompanyLogin)
                             com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                                 val token = if (task.isSuccessful) task.result else null
                                 ApiClient.apiService.logout(com.example.vamsapp.model.LogoutRequest(token)).enqueue(object : retrofit2.Callback<Void> {
-                                    override fun onResponse(call: retrofit2.Call<Void>, response: retrofit2.Response<Void>) {
-                                        VamsPrefs.clearSession()
-                                        screenStack.clear()
-                                        screenStack.add(Screen.CompanyLogin)
-                                    }
-                                    override fun onFailure(call: retrofit2.Call<Void>, t: Throwable) {
-                                        VamsPrefs.clearSession()
-                                        screenStack.clear()
-                                        screenStack.add(Screen.CompanyLogin)
-                                    }
+                                    override fun onResponse(call: retrofit2.Call<Void>, response: retrofit2.Response<Void>) {}
+                                    override fun onFailure(call: retrofit2.Call<Void>, t: Throwable) {}
                                 })
                             }
                         }
@@ -568,15 +558,15 @@ fun MainNavigation(pendingAlertId: MutableState<String?>) {
                             screenStack.add(Screen.CompanyLogin)
                         },
                         onNavigateToDashboard = {
-                            currentUser = VamsPrefs.getUser() ?: User(
-                                id = "e30fa27d-f421-49e0-82a8-fdbd5bc2c30a",
-                                email = "supervisor.john@company.com",
-                                name = "John Doe",
-                                role = "SUPERVISOR",
-                                companyId = VamsPrefs.getCompanyId() ?: "b812efd9-a412-4011-9a99-b1d5e3cdae01"
-                            )
-                            screenStack.clear()
-                            screenStack.add(Screen.Dashboard)
+                            val savedUser = VamsPrefs.getUser()
+                            if (savedUser != null) {
+                                currentUser = savedUser
+                                screenStack.clear()
+                                screenStack.add(Screen.Dashboard)
+                            } else {
+                                screenStack.clear()
+                                screenStack.add(Screen.CompanyLogin)
+                            }
                         }
                     )
                 }

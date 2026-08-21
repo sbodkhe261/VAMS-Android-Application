@@ -360,8 +360,8 @@ fun DashboardScreen(
         if (resolvingAlert != null) {
             ResolveAlertBottomSheet(
                 onDismiss = { alertToResolve = null },
-                onSubmit = { reason, notes, _, _ ->
-                    viewModel.resolveAlert(resolvingAlert.id, reason, notes, user)
+                onSubmit = { reason, notes, file, text ->
+                    viewModel.resolveAlert(resolvingAlert.id, reason, notes, file, text, user)
                     alertToResolve = null
                 }
             )
@@ -509,7 +509,11 @@ fun DefectIncidentCard(
                     if (alert.status.equals("RESOLVED", ignoreCase = true)) {
                         Text(text = "Resolved by: ${alert.resolution?.resolvedByUser?.name ?: "Someone"}", fontSize = 11.sp, color = Success, fontWeight = FontWeight.Bold)
                     } else {
-                        Text(text = "Assigned: " + (alert.assignedToRole ?: "Unassigned"), fontSize = 11.sp, color = TextSecondary)
+                        if (alert.assignedToUserId != null) {
+                            Text(text = "Taken over by: " + (alert.assignedToUserName ?: "Someone"), fontSize = 11.sp, color = Accent, fontWeight = FontWeight.Bold)
+                        } else {
+                            Text(text = "Assigned: " + (alert.assignedToRole ?: "Unassigned"), fontSize = 11.sp, color = TextSecondary)
+                        }
                     }
                 }
 
@@ -532,12 +536,12 @@ fun DefectIncidentCard(
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
-                    Text(text = getRelativeTimeSpan(alert.updatedAt), fontSize = 10.sp, color = TextSecondary)
+                    Text(text = formatAbsoluteTime(alert.updatedAt, includeSeconds = false), fontSize = 10.sp, color = TextSecondary)
                 }
 
                 // Inline action buttons
                 val showResolve = false
-                val showTakeOver = alert.status != "RESOLVED" && alert.assignedToUserId != currentUser.id
+                val showTakeOver = alert.status != "RESOLVED" && alert.assignedToUserId == null
 
                 if (showTakeOver || showResolve) {
                     Spacer(modifier = Modifier.height(10.dp))
@@ -609,42 +613,30 @@ private fun CustomFilterChip(
     }
 }
 
-private fun getRelativeTimeSpan(isoString: String): String {
-    try {
-        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
-            timeZone = java.util.TimeZone.getTimeZone("UTC")
-        }
-        val date = sdf.parse(isoString) ?: return "Just now"
-        val diffMs = System.currentTimeMillis() - date.time
-        val diffMin = diffMs / (1000 * 60)
-        val diffHours = diffMin / 60
-        val diffDays = diffHours / 24
-
-        return when {
-            diffMin < 1 -> "Just now"
-            diffMin < 60 -> "${diffMin}m ago"
-            diffHours < 24 -> "${diffHours}h ago"
-            else -> "${diffDays}d ago"
-        }
-    } catch (e: Exception) {
+private fun formatAbsoluteTime(isoString: String, includeSeconds: Boolean = false): String {
+    val formats = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+        "yyyy-MM-dd'T'HH:mm:ssZ"
+    )
+    var date: java.util.Date? = null
+    for (fmt in formats) {
         try {
-            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).apply {
+            val sdf = java.text.SimpleDateFormat(fmt, java.util.Locale.US).apply {
                 timeZone = java.util.TimeZone.getTimeZone("UTC")
             }
-            val date = sdf.parse(isoString) ?: return "Just now"
-            val diffMs = System.currentTimeMillis() - date.time
-            val diffMin = diffMs / (1000 * 60)
-            val diffHours = diffMin / 60
-            val diffDays = diffHours / 24
-
-            return when {
-                diffMin < 1 -> "Just now"
-                diffMin < 60 -> "${diffMin}m ago"
-                diffHours < 24 -> "${diffHours}h ago"
-                else -> "${diffDays}d ago"
-            }
-        } catch (e2: Exception) {
-            return "Just now"
+            date = sdf.parse(isoString)
+            if (date != null) break
+        } catch (e: Exception) {
+            // continue
         }
     }
+    if (date == null) return isoString
+    
+    val pattern = if (includeSeconds) "hh:mm:ss a" else "hh:mm a"
+    val localSdf = java.text.SimpleDateFormat(pattern, java.util.Locale.US).apply {
+        timeZone = java.util.TimeZone.getDefault()
+    }
+    return localSdf.format(date)
 }

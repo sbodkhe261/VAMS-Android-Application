@@ -157,8 +157,8 @@ fun NotificationPanel(
         if (resolvingAlert != null) {
             ResolveAlertBottomSheet(
                 onDismiss = { alertToResolve = null },
-                onSubmit = { reason, notes, _, _ ->
-                    viewModel.resolveAlert(resolvingAlert.id, reason, notes, null, "", emptyList())
+                onSubmit = { reason, notes, file, text ->
+                    viewModel.resolveAlert(resolvingAlert.id, reason, notes, file, text, emptyList())
                     alertToResolve = null
                 }
             )
@@ -221,11 +221,20 @@ fun NotificationItemCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            Text(
-                text = "Assigned to: ${alert.assignedToRole ?: "None"} | VIN: ${alert.vin ?: "Not specified"}",
-                fontSize = 11.sp,
-                color = TextSecondary
-            )
+            if (alert.assignedToUserId != null && !alert.status.equals("RESOLVED", ignoreCase = true)) {
+                Text(
+                    text = "Taken over by: ${alert.assignedToUserName ?: "Someone"} | VIN: ${alert.vin ?: "Not specified"}",
+                    fontSize = 11.sp,
+                    color = Accent,
+                    fontWeight = FontWeight.Bold
+                )
+            } else {
+                Text(
+                    text = "Assigned to: ${alert.assignedToRole ?: "None"} | VIN: ${alert.vin ?: "Not specified"}",
+                    fontSize = 11.sp,
+                    color = TextSecondary
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -243,14 +252,14 @@ fun NotificationItemCard(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = getRelativeTimeSpan(alert.updatedAt),
+                        text = formatAbsoluteTime(alert.updatedAt, includeSeconds = false),
                         fontSize = 9.sp,
                         color = TextSecondary
                     )
                 }
 
                 val showResolve = alert.status != "RESOLVED"
-                val showTakeOver = alert.status != "RESOLVED" && alert.assignedToUserId != currentUser.id
+                val showTakeOver = alert.status != "RESOLVED" && alert.assignedToUserId == null
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (showTakeOver) {
@@ -282,24 +291,30 @@ fun NotificationItemCard(
     }
 }
 
-private fun getRelativeTimeSpan(isoString: String): String {
-    return try {
-        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US)
-        sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
-        val date = sdf.parse(isoString) ?: return isoString
-        val diff = System.currentTimeMillis() - date.time
-        val seconds = diff / 1000
-        val minutes = seconds / 60
-        val hours = minutes / 60
-        val days = hours / 24
-        
-        when {
-            seconds < 60 -> "Just now"
-            minutes < 60 -> "$minutes min ago"
-            hours < 24 -> "$hours hours ago"
-            else -> "$days days ago"
+private fun formatAbsoluteTime(isoString: String, includeSeconds: Boolean = false): String {
+    val formats = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+        "yyyy-MM-dd'T'HH:mm:ssZ"
+    )
+    var date: java.util.Date? = null
+    for (fmt in formats) {
+        try {
+            val sdf = java.text.SimpleDateFormat(fmt, java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }
+            date = sdf.parse(isoString)
+            if (date != null) break
+        } catch (e: Exception) {
+            // continue
         }
-    } catch (e: Exception) {
-        isoString
     }
+    if (date == null) return isoString
+    
+    val pattern = if (includeSeconds) "hh:mm:ss a" else "hh:mm a"
+    val localSdf = java.text.SimpleDateFormat(pattern, java.util.Locale.US).apply {
+        timeZone = java.util.TimeZone.getDefault()
+    }
+    return localSdf.format(date)
 }

@@ -16,6 +16,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.io.File
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import com.example.vamsapp.model.UploadMediaResponse
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -185,7 +191,7 @@ class DashboardViewModel : ViewModel(), SocketManager.SocketEventListener {
         })
     }
 
-    fun resolveAlert(alertId: String, reason: String, notes: String, user: User) {
+    fun resolveAlert(alertId: String, reason: String, notes: String, audioFile: File?, transcription: String?, user: User) {
         val currentList = _rawAlerts.value.toMutableList()
         val idx = currentList.indexOfFirst { it.id == alertId }
         if (idx != -1) {
@@ -195,11 +201,39 @@ class DashboardViewModel : ViewModel(), SocketManager.SocketEventListener {
             filterAndPostAlerts(user)
         }
 
+        if (audioFile != null) {
+            val filePart = MultipartBody.Part.createFormData(
+                "file",
+                audioFile.name,
+                audioFile.asRequestBody("audio/*".toMediaTypeOrNull())
+            )
+            val purposePart = "AUDIO_RESOLUTION".toRequestBody("text/plain".toMediaTypeOrNull())
+
+            ApiClient.apiService.uploadMedia(filePart, purposePart).enqueue(object : Callback<UploadMediaResponse> {
+                override fun onResponse(call: Call<UploadMediaResponse>, response: Response<UploadMediaResponse>) {
+                    if (response.isSuccessful && response.body() != null) {
+                        val mediaUrl = response.body()!!.fileUrl
+                        submitResolution(alertId, reason, notes, mediaUrl, transcription, user)
+                    } else {
+                        _error.value = "Failed to upload audio: ${response.code()}"
+                    }
+                }
+
+                override fun onFailure(call: Call<UploadMediaResponse>, t: Throwable) {
+                    _error.value = "Upload connection failure: ${t.localizedMessage}"
+                }
+            })
+        } else {
+            submitResolution(alertId, reason, notes, null, transcription, user)
+        }
+    }
+
+    private fun submitResolution(alertId: String, reason: String, notes: String, audioPath: String?, transcription: String?, user: User) {
         val request = ResolveAlertRequest(
             reason = reason,
             notes = notes,
-            transcription = "",
-            audioPath = null,
+            audioPath = audioPath,
+            transcription = transcription ?: "",
             imageUrls = emptyList()
         )
 

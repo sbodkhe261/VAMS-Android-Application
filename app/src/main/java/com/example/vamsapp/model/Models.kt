@@ -163,6 +163,7 @@ data class Alert(
     val status: String,
     val assignedToUserId: String? = null,
     val assignedToRole: String? = null,
+    val assignedToUserName: String? = null,
     val assignedToDepartment: String? = null,
     val assignedToTeam: String? = null,
     val createdById: String? = null,

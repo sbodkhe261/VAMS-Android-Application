@@ -169,8 +169,8 @@ fun AlertDetailScreen(
                                     }
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(text = "Source Station: " + (if (currentAlert.isManual) "Manual Dispatch" else "Automated Webhook"), color = TextSecondary, fontSize = 12.sp)
-                                    Text(text = "Ingested At: " + getRelativeTimeSpan(currentAlert.createdAt), color = TextSecondary, fontSize = 12.sp)
-                                    Text(text = "Last Action At: " + getRelativeTimeSpan(currentAlert.updatedAt), color = TextSecondary, fontSize = 12.sp)
+                                    Text(text = "Ingested At: " + formatAbsoluteTime(currentAlert.createdAt, includeSeconds = true), color = TextSecondary, fontSize = 12.sp)
+                                    Text(text = "Last Action At: " + formatAbsoluteTime(currentAlert.updatedAt, includeSeconds = true), color = TextSecondary, fontSize = 12.sp)
                                 }
                             }
                         }
@@ -328,8 +328,56 @@ fun AlertDetailScreen(
                                                 var mediaPlayer by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
                                                 val context = androidx.compose.ui.platform.LocalContext.current
 
-                                                // Parse duration from URL/path name (e.g. _dur_8.mp4)
-                                                val durationFromUrl = audioPath.substringAfter("_dur_").substringBefore(".mp4").toIntOrNull()
+                                                var localFile by remember { mutableStateOf<java.io.File?>(null) }
+                                                
+                                                LaunchedEffect(audioPath) {
+                                                    val absoluteUrl = com.example.vamsapp.network.ApiClient.getAbsoluteUrl(audioPath)
+                                                    if (!absoluteUrl.isNullOrEmpty()) {
+                                                        val ext = if (audioPath.endsWith(".mp4", ignoreCase = true)) ".mp4" else ".m4a"
+                                                        val cacheFile = java.io.File(context.cacheDir, "cached_res_voice_${currentAlert.id}$ext")
+                                                        if (cacheFile.exists() && cacheFile.length() > 0) {
+                                                            localFile = cacheFile
+                                                        } else {
+                                                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                                try {
+                                                                    val url = java.net.URL(absoluteUrl)
+                                                                    val connection = url.openConnection() as java.net.HttpURLConnection
+                                                                    connection.requestMethod = "GET"
+                                                                    connection.connect()
+                                                                    if (connection.responseCode == java.net.HttpURLConnection.HTTP_OK) {
+                                                                        java.io.BufferedInputStream(connection.inputStream).use { input ->
+                                                                            java.io.FileOutputStream(cacheFile).use { output ->
+                                                                                val data = ByteArray(1024)
+                                                                                var count: Int
+                                                                                while (input.read(data).also { count = it } != -1) {
+                                                                                    output.write(data, 0, count)
+                                                                                }
+                                                                                output.flush()
+                                                                            }
+                                                                        }
+                                                                        if (cacheFile.length() > 0) {
+                                                                            localFile = cacheFile
+                                                                        } else {
+                                                                            cacheFile.delete()
+                                                                        }
+                                                                    } else {
+                                                                        if (cacheFile.exists()) {
+                                                                            cacheFile.delete()
+                                                                        }
+                                                                    }
+                                                                } catch (e: Exception) {
+                                                                    e.printStackTrace()
+                                                                    if (cacheFile.exists()) {
+                                                                        cacheFile.delete()
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                // Parse duration from URL/path name (e.g. _dur_8.m4a or .mp4)
+                                                val durationFromUrl = audioPath.substringAfter("_dur_").substringBefore(".m4a").substringBefore(".mp4").toIntOrNull()
                                                 val totalDurationSec = durationFromUrl ?: 12
                                                 val displayDuration = if (playDurationMs > 0) playDurationMs / 1000 else totalDurationSec
 
@@ -355,24 +403,56 @@ fun AlertDetailScreen(
                                                 }
 
                                                 fun startPlayback() {
-                                                    val absoluteUrl = com.example.vamsapp.network.ApiClient.getAbsoluteUrl(audioPath)
-                                                    if (absoluteUrl.isNullOrEmpty()) return
-
                                                     try {
                                                         val player = android.media.MediaPlayer().apply {
-                                                            setDataSource(absoluteUrl)
-                                                            prepareAsync()
-                                                            setOnPreparedListener { mp ->
-                                                                mp.start()
+                                                            setAudioAttributes(
+                                                                android.media.AudioAttributes.Builder()
+                                                                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                                                                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                                                                    .build()
+                                                            )
+                                                            
+                                                            val cached = localFile
+                                                            if (cached != null && cached.exists() && cached.length() > 0) {
+                                                                val fis = java.io.FileInputStream(cached)
+                                                                setDataSource(fis.fd)
+                                                                prepare()
+                                                                fis.close()
+                                                                start()
                                                                 isPlaying = true
-                                                                playDurationMs = mp.duration
+                                                                playDurationMs = duration
+                                                            } else {
+                                                                val absoluteUrl = com.example.vamsapp.network.ApiClient.getAbsoluteUrl(audioPath)
+                                                                if (absoluteUrl.isNullOrEmpty()) return
+                                                                
+                                                                android.util.Log.d("MediaPlayer", "Loading audio from: $absoluteUrl")
+                                                                android.widget.Toast.makeText(context, "Loading audio verification note...", android.widget.Toast.LENGTH_SHORT).show()
+                                                                
+                                                                setDataSource(absoluteUrl)
+                                                                prepareAsync()
+                                                                setOnPreparedListener { mp ->
+                                                                    mp.start()
+                                                                    isPlaying = true
+                                                                    playDurationMs = mp.duration
+                                                                }
                                                             }
+                                                            
                                                             setOnCompletionListener {
                                                                 stopPlayback()
                                                             }
                                                             setOnErrorListener { _, _, _ ->
                                                                 stopPlayback()
-                                                                android.widget.Toast.makeText(context, "Error playing audio file", android.widget.Toast.LENGTH_SHORT).show()
+                                                                try {
+                                                                    val ext = if (audioPath.endsWith(".mp4", ignoreCase = true)) ".mp4" else ".m4a"
+                                                                    val cacheFile = java.io.File(context.cacheDir, "cached_res_voice_${currentAlert.id}$ext")
+                                                                    if (cacheFile.exists()) {
+                                                                        cacheFile.delete()
+                                                                    }
+                                                                    localFile = null
+                                                                } catch (ex: Exception) {
+                                                                    ex.printStackTrace()
+                                                                }
+                                                                android.widget.Toast.makeText(context, "Error playing audio note, retrying...", android.widget.Toast.LENGTH_SHORT).show()
                                                                 true
                                                             }
                                                         }
@@ -588,11 +668,7 @@ fun TimelineSection(alert: Alert) {
                     else -> Triple("Defect Incident Update", Icons.Default.Warning, TextSecondary)
                 }
 
-                val formattedTime = try {
-                    getRelativeTimeSpan(event.createdAt)
-                } catch (e: Exception) {
-                    event.createdAt
-                }
+                val formattedTime = formatAbsoluteTime(event.createdAt, includeSeconds = true)
 
                 TimelineNode(
                     title = title,
@@ -611,7 +687,7 @@ fun TimelineSection(alert: Alert) {
             TimelineNode(
                 title = "Defect Incident Created",
                 subtitle = "Vision inspection camera sensor triggered alert",
-                time = getRelativeTimeSpan(alert.createdAt),
+                time = formatAbsoluteTime(alert.createdAt, includeSeconds = true),
                 color = PrimaryBlue,
                 icon = Icons.Default.Add,
                 showConnector = showAssigned || showResolved
@@ -620,7 +696,7 @@ fun TimelineSection(alert: Alert) {
                 TimelineNode(
                     title = "Defect Incident Assigned",
                     subtitle = "Assigned to: " + (alert.assignedToRole ?: "Worker"),
-                    time = getRelativeTimeSpan(alert.updatedAt),
+                    time = formatAbsoluteTime(alert.updatedAt, includeSeconds = true),
                     color = Accent,
                     icon = Icons.Default.Person,
                     showConnector = showResolved
@@ -630,7 +706,7 @@ fun TimelineSection(alert: Alert) {
                 TimelineNode(
                     title = "Defect Incident Resolved",
                     subtitle = "Resolved and quality checked",
-                    time = getRelativeTimeSpan(alert.updatedAt),
+                    time = formatAbsoluteTime(alert.updatedAt, includeSeconds = true),
                     color = Success,
                     icon = Icons.Default.Check,
                     showConnector = false
@@ -773,24 +849,30 @@ fun BottomActionBar(
     }
 }
 
-private fun getRelativeTimeSpan(isoString: String): String {
-    return try {
-        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US)
-        sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
-        val date = sdf.parse(isoString) ?: return isoString
-        val diff = System.currentTimeMillis() - date.time
-        val seconds = diff / 1000
-        val minutes = seconds / 60
-        val hours = minutes / 60
-        val days = hours / 24
-        
-        when {
-            seconds < 60 -> "Just now"
-            minutes < 60 -> "$minutes min ago"
-            hours < 24 -> "$hours hours ago"
-            else -> "$days days ago"
+private fun formatAbsoluteTime(isoString: String, includeSeconds: Boolean = false): String {
+    val formats = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+        "yyyy-MM-dd'T'HH:mm:ssZ"
+    )
+    var date: java.util.Date? = null
+    for (fmt in formats) {
+        try {
+            val sdf = java.text.SimpleDateFormat(fmt, java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }
+            date = sdf.parse(isoString)
+            if (date != null) break
+        } catch (e: Exception) {
+            // continue
         }
-    } catch (e: Exception) {
-        isoString
     }
+    if (date == null) return isoString
+    
+    val pattern = if (includeSeconds) "hh:mm:ss a" else "hh:mm a"
+    val localSdf = java.text.SimpleDateFormat(pattern, java.util.Locale.US).apply {
+        timeZone = java.util.TimeZone.getDefault()
+    }
+    return localSdf.format(date)
 }

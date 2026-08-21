@@ -53,7 +53,7 @@ fun ResolveAlertBottomSheet(
         transcription = ""
         
         val cacheDir = context.cacheDir
-        val tempFile = File(cacheDir, "temp_voice_note.mp4")
+        val tempFile = File(cacheDir, "temp_voice_note.m4a")
         if (tempFile.exists()) {
             tempFile.delete()
         }
@@ -103,7 +103,7 @@ fun ResolveAlertBottomSheet(
         timerJob = null
         isRecording = false
 
-        val tempFile = File(context.cacheDir, "temp_voice_note.mp4")
+        val tempFile = File(context.cacheDir, "temp_voice_note.m4a")
         if (tempFile.exists()) {
             if (recordingDurationSec < 1) {
                 tempFile.delete()
@@ -113,7 +113,7 @@ fun ResolveAlertBottomSheet(
                 return
             }
 
-            val finalFile = File(context.cacheDir, "res_voice_${System.currentTimeMillis()}_dur_${recordingDurationSec}.mp4")
+            val finalFile = File(context.cacheDir, "res_voice_${System.currentTimeMillis()}_dur_${recordingDurationSec}.m4a")
             if (tempFile.renameTo(finalFile)) {
                 audioFile = finalFile
                 transcription = "Inspected and resolved via voice note verification (${recordingDurationSec}s)."
@@ -224,7 +224,7 @@ fun ResolveAlertBottomSheet(
                             val secs = recordingDurationSec % 60
                             String.format("Recording: %d:%02d", mins, secs)
                         } else if (audioFile != null) {
-                            val dur = audioFile!!.name.substringAfter("_dur_").substringBefore(".mp4").toIntOrNull() ?: recordingDurationSec
+                            val dur = audioFile!!.name.substringAfter("_dur_").substringBefore(".m4a").substringBefore(".mp4").toIntOrNull() ?: recordingDurationSec
                             val mins = dur / 60
                             val secs = dur % 60
                             String.format("Recorded: %s (%d:%02d)", audioFile!!.name, mins, secs)
@@ -266,6 +266,9 @@ fun ResolveAlertBottomSheet(
                 Button(
                     onClick = {
                         if (reason.isNotBlank()) {
+                            if (isRecording) {
+                                stopRecording()
+                            }
                             onSubmit(reason, notes, audioFile, transcription)
                             onDismiss()
                         }

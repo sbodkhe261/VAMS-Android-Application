@@ -132,9 +132,7 @@ class AlertDetailViewModel : ViewModel() {
     }
 
     fun resolveAlert(alertId: String, reason: String, notes: String, audioFile: File?, transcription: String?, imageUrls: List<String>?) {
-        // Optimistically update status immediately
-        _alert.value = _alert.value?.copy(status = "RESOLVED")
-        _actionSuccess.value = true
+        _isLoading.value = true
 
         if (audioFile != null) {
             val filePart = MultipartBody.Part.createFormData(
@@ -150,11 +148,13 @@ class AlertDetailViewModel : ViewModel() {
                         val mediaUrl = response.body()!!.fileUrl
                         submitResolution(alertId, reason, notes, mediaUrl, transcription, imageUrls)
                     } else {
+                        _isLoading.value = false
                         _error.value = "Failed to upload audio: ${response.code()}"
                     }
                 }
 
                 override fun onFailure(call: Call<UploadMediaResponse>, t: Throwable) {
+                    _isLoading.value = false
                     _error.value = "Upload connection failure: ${t.localizedMessage}"
                 }
             })
@@ -174,12 +174,17 @@ class AlertDetailViewModel : ViewModel() {
 
         ApiClient.apiService.resolveAlert(alertId, request).enqueue(object : Callback<Alert> {
             override fun onResponse(call: Call<Alert>, response: Response<Alert>) {
+                _isLoading.value = false
                 if (response.isSuccessful && response.body() != null) {
                     _alert.value = response.body()
+                    _actionSuccess.value = true
+                } else {
+                    _error.value = "Failed to resolve alert: ${response.code()}"
                 }
             }
 
             override fun onFailure(call: Call<Alert>, t: Throwable) {
+                _isLoading.value = false
                 _error.value = t.localizedMessage
             }
         })
