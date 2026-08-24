@@ -416,10 +416,8 @@ fun AlertDetailScreen(
                                                             
                                                             val cached = localFile
                                                             if (cached != null && cached.exists() && cached.length() > 0) {
-                                                                val fis = java.io.FileInputStream(cached)
-                                                                setDataSource(fis.fd)
+                                                                setDataSource(cached.absolutePath)
                                                                 prepare()
-                                                                fis.close()
                                                                 start()
                                                                 isPlaying = true
                                                                 playDurationMs = duration
