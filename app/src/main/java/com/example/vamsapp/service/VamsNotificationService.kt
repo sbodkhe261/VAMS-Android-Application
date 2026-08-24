@@ -97,6 +97,10 @@ class VamsNotificationService : Service() {
 
         override fun onAlertAssigned(alertId: String, title: String, message: String) {
             Log.d(TAG, "onAlertAssigned: $alertId")
+            if (title.isEmpty() || message.isEmpty()) {
+                Log.d(TAG, "onAlertAssigned: Title or message is empty/null. Skipping notification display (silent update).")
+                return
+            }
             handleSocketAlert(
                 alertId,
                 title,
@@ -250,7 +254,12 @@ class VamsNotificationService : Service() {
             return
         }
 
-        // Deduplicate using shared preferences to prevent double notifications (FCM + Socket)
+        if (title.isNullOrEmpty() || message.isNullOrEmpty()) {
+            Log.d(TAG, "Blank title or message. Skipping notification to avoid blank banners.")
+            return
+        }
+
+        // Deduplicate using shared preferences with 60-second content-signature keys (prevent double notification Socket + FCM)
         if (alertId.isNotEmpty()) {
             var normAlertId = alertId
             if (normAlertId.startsWith("BROADCAST_")) {
@@ -259,13 +268,15 @@ class VamsNotificationService : Service() {
                     normAlertId = normAlertId.substring(0, idx)
                 }
             }
-            val lastBeep = VamsPrefs.getAlertLastBeepTime(normAlertId)
+            val msgSig = message.take(15) + "_" + message.length
+            val uniqueKey = "${normAlertId}_${msgSig}"
+            val lastBeep = VamsPrefs.getAlertLastBeepTime(uniqueKey)
             val now = System.currentTimeMillis()
-            if (now - lastBeep < 3000) {
-                Log.d(TAG, "Duplicate socket notification detected for alert $normAlertId within 3s. Skipping to prevent double notifications.")
+            if (now - lastBeep < 60000) {
+                Log.d(TAG, "Duplicate socket notification detected for key $uniqueKey within 60s. Skipping.")
                 return
             }
-            VamsPrefs.setAlertLastBeepTime(normAlertId, now)
+            VamsPrefs.setAlertLastBeepTime(uniqueKey, now)
         }
 
         val context = applicationContext

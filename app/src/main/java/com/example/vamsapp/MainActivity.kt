@@ -354,6 +354,17 @@ fun MainNavigation(pendingAlertId: MutableState<String?>) {
                     mainHandler.post {
                         if (!MainActivity.isAppInForeground) return@post
                         val user = currentUser ?: return@post
+                        
+                        if (title.isNullOrEmpty() || message.isNullOrEmpty()) {
+                            android.util.Log.d("MainActivity", "onAlertAssigned: Silent update received. Refreshing views silently.")
+                            val current = screenStack.lastOrNull()
+                            if (current is Screen.AlertDetails && current.id == alertId) {
+                                detailViewModel.fetchDetails(alertId)
+                            }
+                            dashboardViewModel.fetchTelemetryAndAlerts(user, showLoading = false)
+                            return@post
+                        }
+
                         activeInAppNotification = InAppNotification(
                             title = title,
                             message = message,

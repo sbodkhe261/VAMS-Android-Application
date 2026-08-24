@@ -94,7 +94,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             return
         }
 
-        // Deduplicate using shared preferences
+        if (title.isNullOrEmpty() || message.isNullOrEmpty()) {
+            Log.d(TAG, "Blank title or message. Skipping notification to avoid blank banners.")
+            return
+        }
+
+        // Deduplicate using shared preferences with 60-second content-signature keys
         if (!alertId.isNullOrEmpty()) {
             var normAlertId = alertId
             if (normAlertId.startsWith("BROADCAST_")) {
@@ -103,13 +108,15 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     normAlertId = normAlertId.substring(0, idx)
                 }
             }
-            val lastBeep = VamsPrefs.getAlertLastBeepTime(normAlertId)
+            val msgSig = message.take(15) + "_" + message.length
+            val uniqueKey = "${normAlertId}_${msgSig}"
+            val lastBeep = VamsPrefs.getAlertLastBeepTime(uniqueKey)
             val now = System.currentTimeMillis()
-            if (now - lastBeep < 3000) {
-                Log.d(TAG, "Duplicate FCM notification detected for alert $normAlertId within 3s. Skipping to prevent double notifications.")
+            if (now - lastBeep < 60000) {
+                Log.d(TAG, "Duplicate FCM notification detected for key $uniqueKey within 60s. Skipping to prevent double notifications.")
                 return
             }
-            VamsPrefs.setAlertLastBeepTime(normAlertId, now)
+            VamsPrefs.setAlertLastBeepTime(uniqueKey, now)
         }
 
         // Post a heads-up notification with custom channel sound based on severity and sound profile
