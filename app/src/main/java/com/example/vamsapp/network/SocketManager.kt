@@ -129,11 +129,25 @@ object SocketManager {
                 val broadcastId = data.optString("broadcastId").ifEmpty { "BROADCAST_${System.currentTimeMillis()}" }
                 
                 val targetUserIdsArray = data.optJSONArray("targetUserIds")
-                if (targetUserIdsArray != null && targetUserIdsArray.length() > 0) {
+                val targetRolesArray = data.optJSONArray("targetRoles")
+                
+                val hasTargetUserIds = targetUserIdsArray != null && targetUserIdsArray.length() > 0
+                val hasTargetRoles = targetRolesArray != null && targetRolesArray.length() > 0
+                
+                if (hasTargetUserIds || hasTargetRoles) {
                     val targetUserIds = mutableListOf<String>()
-                    for (i in 0 until targetUserIdsArray.length()) {
-                        targetUserIds.add(targetUserIdsArray.optString(i).trim())
+                    if (hasTargetUserIds) {
+                        for (i in 0 until targetUserIdsArray.length()) {
+                            targetUserIds.add(targetUserIdsArray.optString(i).trim())
+                        }
                     }
+                    val targetRoles = mutableListOf<String>()
+                    if (hasTargetRoles) {
+                        for (i in 0 until targetRolesArray.length()) {
+                            targetRoles.add(targetRolesArray.optString(i).trim())
+                        }
+                    }
+                    
                     val currentUser = VamsPrefs.getUser()
                     val currentUserId = VamsPrefs.getUserId()?.trim() ?: currentUser?.id?.trim()
                     val currentUserEmail = currentUser?.email?.trim()
@@ -141,14 +155,25 @@ object SocketManager {
                     
                     val hasUserInfo = !currentUserId.isNullOrEmpty() || !currentUserEmail.isNullOrEmpty() || !currentUserRole.isNullOrEmpty()
                     if (hasUserInfo) {
-                        val isTargeted = targetUserIds.any { target ->
-                            (!currentUserId.isNullOrEmpty() && target.equals(currentUserId, ignoreCase = true)) ||
-                            (!currentUserEmail.isNullOrEmpty() && target.equals(currentUserEmail, ignoreCase = true)) ||
-                            (!currentUserRole.isNullOrEmpty() && target.equals(currentUserRole, ignoreCase = true))
+                        var isTargeted = false
+                        
+                        // Check user ID or email
+                        if (targetUserIds.isNotEmpty()) {
+                            isTargeted = targetUserIds.any { target ->
+                                (!currentUserId.isNullOrEmpty() && target.equals(currentUserId, ignoreCase = true)) ||
+                                (!currentUserEmail.isNullOrEmpty() && target.equals(currentUserEmail, ignoreCase = true))
+                            }
+                        }
+                        
+                        // Check role
+                        if (!isTargeted && targetRoles.isNotEmpty() && !currentUserRole.isNullOrEmpty()) {
+                            isTargeted = targetRoles.any { role ->
+                                role.equals(currentUserRole, ignoreCase = true)
+                            }
                         }
                         
                         if (!isTargeted) {
-                            Log.d(TAG, "Skipping broadcast notification: current user ($currentUserId / $currentUserEmail / $currentUserRole) is not targeted.")
+                            Log.d(TAG, "Skipping broadcast notification: current user ($currentUserId / $currentUserRole) is not targeted.")
                             return@on
                         }
                     }
