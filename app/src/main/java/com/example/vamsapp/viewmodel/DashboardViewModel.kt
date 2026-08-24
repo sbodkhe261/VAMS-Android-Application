@@ -181,7 +181,14 @@ class DashboardViewModel : ViewModel(), SocketManager.SocketEventListener {
                 if (response.isSuccessful) {
                     fetchTelemetryAndAlerts(user, showLoading = false)
                 } else {
-                    _error.value = "Failed to take over: ${response.code()}"
+                    val errorMsg = try {
+                        val json = response.errorBody()?.string()
+                        val parser = com.google.gson.JsonParser.parseString(json)
+                        parser.asJsonObject.get("message").asString
+                    } catch (e: Exception) {
+                        null
+                    }
+                    _error.value = errorMsg ?: "Failed to take over: ${response.code()}"
                 }
             }
 

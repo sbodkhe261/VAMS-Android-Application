@@ -13,6 +13,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -307,7 +309,7 @@ fun AlertDetailScreen(
                                             Spacer(modifier = Modifier.height(8.dp))
                                             Text(text = "Quality Check Notes", fontWeight = FontWeight.Bold, color = TextSecondary, fontSize = 11.sp)
                                             Text(
-                                                text = currentAlert.resolution?.notes ?: "",
+                                                text = currentAlert.resolution.notes,
                                                 color = Color.White,
                                                 fontSize = 12.sp,
                                                 modifier = Modifier.padding(top = 4.dp)
@@ -323,8 +325,8 @@ fun AlertDetailScreen(
                                                 shape = RoundedCornerShape(8.dp)
                                             ) {
                                                 var isPlaying by remember { mutableStateOf(false) }
-                                                var playDurationMs by remember { mutableStateOf(0) }
-                                                var playElapsedMs by remember { mutableStateOf(0) }
+                                                var playDurationMs by remember { mutableIntStateOf(0) }
+                                                var playElapsedMs by remember { mutableIntStateOf(0) }
                                                 var mediaPlayer by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
                                                 val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -521,9 +523,9 @@ fun AlertDetailScreen(
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                     Text(
                                                         text = if (isPlaying) {
-                                                            String.format("%d:%02d / %d:%02d", displayElapsed / 60, displayElapsed % 60, displayDuration / 60, displayDuration % 60)
+                                                            String.format(java.util.Locale.US, "%d:%02d / %d:%02d", displayElapsed / 60, displayElapsed % 60, displayDuration / 60, displayDuration % 60)
                                                         } else {
-                                                            String.format("%d:%02d", displayDuration / 60, displayDuration % 60)
+                                                            String.format(java.util.Locale.US, "%d:%02d", displayDuration / 60, displayDuration % 60)
                                                         },
                                                         color = TextSecondary,
                                                         fontSize = 10.sp
@@ -822,7 +824,7 @@ fun BottomActionBar(
 
             // Global action buttons
             val showResolve = alert.status != "RESOLVED"
-            val showTakeOver = alert.status != "RESOLVED" && alert.assignedToUserId != user.id
+            val showTakeOver = alert.status != "RESOLVED" && alert.assignedToUserId == null
 
             if (showResolve) {
                 Button(

@@ -250,6 +250,24 @@ class VamsNotificationService : Service() {
             return
         }
 
+        // Deduplicate using shared preferences to prevent double notifications (FCM + Socket)
+        if (alertId.isNotEmpty()) {
+            var normAlertId = alertId
+            if (normAlertId.startsWith("BROADCAST_")) {
+                val idx = normAlertId.lastIndexOf('_')
+                if (idx != -1 && idx > "BROADCAST_".length) {
+                    normAlertId = normAlertId.substring(0, idx)
+                }
+            }
+            val lastBeep = VamsPrefs.getAlertLastBeepTime(normAlertId)
+            val now = System.currentTimeMillis()
+            if (now - lastBeep < 3000) {
+                Log.d(TAG, "Duplicate socket notification detected for alert $normAlertId within 3s. Skipping to prevent double notifications.")
+                return
+            }
+            VamsPrefs.setAlertLastBeepTime(normAlertId, now)
+        }
+
         val context = applicationContext
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         createNotificationChannels(notificationManager)

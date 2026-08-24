@@ -96,13 +96,20 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         // Deduplicate using shared preferences
         if (!alertId.isNullOrEmpty()) {
-            val lastBeep = VamsPrefs.getAlertLastBeepTime(alertId)
+            var normAlertId = alertId
+            if (normAlertId.startsWith("BROADCAST_")) {
+                val idx = normAlertId.lastIndexOf('_')
+                if (idx != -1 && idx > "BROADCAST_".length) {
+                    normAlertId = normAlertId.substring(0, idx)
+                }
+            }
+            val lastBeep = VamsPrefs.getAlertLastBeepTime(normAlertId)
             val now = System.currentTimeMillis()
             if (now - lastBeep < 3000) {
-                Log.d(TAG, "Duplicate FCM notification detected for alert $alertId within 3s. Skipping to prevent double notifications.")
+                Log.d(TAG, "Duplicate FCM notification detected for alert $normAlertId within 3s. Skipping to prevent double notifications.")
                 return
             }
-            VamsPrefs.setAlertLastBeepTime(alertId, now)
+            VamsPrefs.setAlertLastBeepTime(normAlertId, now)
         }
 
         // Post a heads-up notification with custom channel sound based on severity and sound profile
