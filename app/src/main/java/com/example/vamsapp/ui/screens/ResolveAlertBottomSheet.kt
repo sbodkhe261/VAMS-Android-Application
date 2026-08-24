@@ -186,71 +186,7 @@ fun ResolveAlertBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Audio Record UI
-            Text("Voice Note Verification:", fontSize = 11.sp, color = Color.Gray)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = {
-                        if (isRecording) {
-                            stopRecording()
-                        } else {
-                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                                startRecording()
-                            } else {
-                                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(if (isRecording) Color.Red else PrimaryBlue, shape = CircleShape)
-                ) {
-                    Icon(
-                        imageVector = if (isRecording) Icons.Default.Stop else Icons.Default.Mic,
-                        contentDescription = "Mic",
-                        tint = Color.White
-                    )
-                }
 
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Column {
-                    Text(
-                        text = if (isRecording) {
-                            val mins = recordingDurationSec / 60
-                            val secs = recordingDurationSec % 60
-                            String.format("Recording: %d:%02d", mins, secs)
-                        } else if (audioFile != null) {
-                            val dur = audioFile!!.name.substringAfter("_dur_").substringBefore(".m4a").substringBefore(".mp4").toIntOrNull() ?: recordingDurationSec
-                            val mins = dur / 60
-                            val secs = dur % 60
-                            String.format("Recorded: %s (%d:%02d)", audioFile!!.name, mins, secs)
-                        } else {
-                            "Tap Mic to record verification note"
-                        },
-                        color = if (isRecording) Color.Red else Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (isRecording) {
-                        LinearProgressIndicator(color = Color.Red, modifier = Modifier.fillMaxWidth(0.5f))
-                    }
-                }
-            }
-
-            // Real-time transcription box
-            if (transcription.isNotEmpty()) {
-                OutlinedTextField(
-                    value = transcription,
-                    onValueChange = { transcription = it },
-                    label = { Text("Audio Transcript") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 1
-                )
-            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
