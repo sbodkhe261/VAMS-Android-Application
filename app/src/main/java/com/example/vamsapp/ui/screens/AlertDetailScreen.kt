@@ -417,30 +417,26 @@ fun AlertDetailScreen(
                                                             val cached = localFile
                                                             if (cached != null && cached.exists() && cached.length() > 0) {
                                                                 setDataSource(cached.absolutePath)
-                                                                prepare()
-                                                                start()
-                                                                isPlaying = true
-                                                                playDurationMs = duration
                                                             } else {
                                                                 val absoluteUrl = com.example.vamsapp.network.ApiClient.getAbsoluteUrl(audioPath)
                                                                 if (absoluteUrl.isNullOrEmpty()) return
                                                                 
                                                                 android.util.Log.d("MediaPlayer", "Loading audio from: $absoluteUrl")
                                                                 android.widget.Toast.makeText(context, "Loading audio verification note...", android.widget.Toast.LENGTH_SHORT).show()
-                                                                
                                                                 setDataSource(absoluteUrl)
-                                                                prepareAsync()
-                                                                setOnPreparedListener { mp ->
-                                                                    mp.start()
-                                                                    isPlaying = true
-                                                                    playDurationMs = mp.duration
-                                                                }
+                                                            }
+
+                                                            setOnPreparedListener { mp ->
+                                                                mp.start()
+                                                                isPlaying = true
+                                                                playDurationMs = mp.duration
                                                             }
                                                             
                                                             setOnCompletionListener {
                                                                 stopPlayback()
                                                             }
-                                                            setOnErrorListener { _, _, _ ->
+                                                            setOnErrorListener { _, what, extra ->
+                                                                android.util.Log.e("MediaPlayer", "MediaPlayer error: what=$what, extra=$extra")
                                                                 stopPlayback()
                                                                 try {
                                                                     val ext = if (audioPath.endsWith(".mp4", ignoreCase = true)) ".mp4" else ".m4a"
@@ -452,9 +448,11 @@ fun AlertDetailScreen(
                                                                 } catch (ex: Exception) {
                                                                     ex.printStackTrace()
                                                                 }
-                                                                android.widget.Toast.makeText(context, "Error playing audio note, retrying...", android.widget.Toast.LENGTH_SHORT).show()
+                                                                android.widget.Toast.makeText(context, "Error playing audio note", android.widget.Toast.LENGTH_SHORT).show()
                                                                 true
                                                             }
+
+                                                            prepareAsync()
                                                         }
                                                         mediaPlayer = player
                                                     } catch (e: Exception) {
@@ -463,8 +461,8 @@ fun AlertDetailScreen(
                                                     }
                                                 }
 
-                                                LaunchedEffect(isPlaying) {
-                                                    if (isPlaying) {
+                                                LaunchedEffect(isPlaying, mediaPlayer) {
+                                                    if (isPlaying && mediaPlayer != null) {
                                                         while (isPlaying) {
                                                             try {
                                                                 mediaPlayer?.let { mp ->
