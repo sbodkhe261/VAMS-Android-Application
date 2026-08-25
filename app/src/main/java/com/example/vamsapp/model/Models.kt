@@ -250,3 +250,13 @@ data class UpdateDeviceTokenRequest(
 data class LogoutRequest(
     val token: String?
 )
+
+data class ForgotPasswordRequest(
+    val email: String,
+    val companyId: String
+)
+
+data class ForgotPasswordResponse(
+    val success: Boolean,
+    val message: String
+)

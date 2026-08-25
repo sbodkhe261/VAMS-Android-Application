@@ -21,6 +21,9 @@ interface VamsApiService {
     @POST("auth/logout")
     fun logout(@Body request: LogoutRequest): Call<Void>
 
+    @POST("auth/forgot-password")
+    fun forgotPassword(@Body request: ForgotPasswordRequest): Call<ForgotPasswordResponse>
+
     // --- Companies & Settings ---
     @POST("companies")
     fun createCompany(@Body request: CreateCompanyRequest): Call<Company>

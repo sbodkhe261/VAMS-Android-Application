@@ -20,6 +20,13 @@ import com.example.vamsapp.ui.theme.BackgroundDark
 import com.example.vamsapp.ui.theme.CardDark
 import com.example.vamsapp.ui.theme.PrimaryBlue
 import com.example.vamsapp.ui.theme.Success
+import com.example.vamsapp.network.VamsPrefs
+import com.example.vamsapp.network.ApiClient
+import com.example.vamsapp.model.ForgotPasswordRequest
+import com.example.vamsapp.model.ForgotPasswordResponse
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 @Composable
 fun ForgotPasswordScreen(
@@ -27,6 +34,8 @@ fun ForgotPasswordScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var isSubmitted by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
 
     Box(
         modifier = Modifier
@@ -85,26 +94,81 @@ fun ForgotPasswordScreen(
                         Column {
                             OutlinedTextField(
                                 value = email,
-                                onValueChange = { email = it },
+                                onValueChange = { 
+                                    email = it 
+                                    errorMsg = null
+                                },
                                 label = { Text("EMAIL ADDRESS") },
                                 singleLine = true,
                                 leadingIcon = {
                                     Icon(imageVector = Icons.Default.Email, contentDescription = null)
                                 },
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isLoading
                             )
+
+                            if (errorMsg != null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = errorMsg ?: "",
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
 
                             Spacer(modifier = Modifier.height(24.dp))
 
                             Button(
-                                onClick = { if (email.isNotEmpty()) isSubmitted = true },
+                                onClick = { 
+                                    if (email.isNotEmpty()) {
+                                        val companyId = VamsPrefs.getCompanyId() ?: ""
+                                        if (companyId.isEmpty()) {
+                                            errorMsg = "Company session is invalid. Please go back to login."
+                                            return@Button
+                                        }
+                                        isLoading = true
+                                        errorMsg = null
+                                        ApiClient.apiService.forgotPassword(ForgotPasswordRequest(email.trim(), companyId))
+                                            .enqueue(object : Callback<ForgotPasswordResponse> {
+                                                override fun onResponse(
+                                                    call: Call<ForgotPasswordResponse>,
+                                                    response: Response<ForgotPasswordResponse>
+                                                ) {
+                                                    isLoading = false
+                                                    if (response.isSuccessful && response.body()?.success == true) {
+                                                        isSubmitted = true
+                                                    } else {
+                                                        errorMsg = response.body()?.message ?: "Failed to dispatch reset link. Please check the email and try again."
+                                                    }
+                                                }
+
+                                                override fun onFailure(
+                                                    call: Call<ForgotPasswordResponse>,
+                                                    t: Throwable
+                                                ) {
+                                                    isLoading = false
+                                                    errorMsg = "Connection error: ${t.localizedMessage}"
+                                                }
+                                            })
+                                    }
+                                },
+                                enabled = !isLoading && email.isNotEmpty(),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(48.dp),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
                             ) {
-                                Text("Send reset link", fontWeight = FontWeight.Bold, color = Color.White)
+                                if (isLoading) {
+                                    CircularProgressIndicator(
+                                        color = Color.White,
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Text("Send reset link", fontWeight = FontWeight.Bold, color = Color.White)
+                                }
                             }
                         }
                     }
